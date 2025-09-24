@@ -1,0 +1,407 @@
+/* Global styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Comic Sans MS', 'Chalkboard SE', cursive;
+  overflow: hidden;
+  height: 100vh;
+  background: linear-gradient(135deg, #f9f6e7 0%, #ffe7c2 100%);
+}
+
+/* Main container - full screen layout */
+.toonycam-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background: linear-gradient(135deg, #f9f6e7 0%, #ffe7c2 100%);
+  font-family: 'Comic Sans MS', 'Chalkboard SE', cursive;
+  position: relative;
+}
+
+/* Header - fixed at top */
+.sticky-top {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: rgba(249, 246, 231, 0.95);
+  backdrop-filter: blur(10px);
+  padding: 12px 12px;
+  border-bottom: 2px solid rgba(255, 179, 71, 0.3);
+}
+
+.toony-header {
+  text-align: center;
+}
+
+.toony-title {
+  font-size: 2rem;
+  color: #ffb347;
+  text-shadow: 2px 2px 0 #fffbe7, 3px 3px 0 #ff5e5e;
+  margin: 0;
+  font-weight: bold;
+}
+
+.small-title {
+  font-size: 2.2rem !important;
+  margin: 0 !important;
+}
+
+/* Main content area - video takes full available space */
+.main-content-flex {
+  position: fixed;
+  top: 65px; /* Below header with margin for border visibility */
+  bottom: 65px; /* Above controls with margin for border visibility */
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px; 
+  width: 100vw;
+  height: calc(100vh - 110px); 
+}
+
+/* Video section - full available space */
+.video-section {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  max-width: none;
+  max-height: none;
+}
+
+.big-video {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none;
+  max-height: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Video frame - full screen with minimal border */
+.cartoon-video-frame {
+  width: 100%;
+  height: 100%;
+  border: 4px solid #ffb347;
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+  background: #000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Video and canvas */
+.hidden-video {
+  display: none;
+}
+
+.output-canvas {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+  background: #000;
+}
+
+/* Canvas overlay */
+.canvas-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  border-radius: 12px;
+  z-index: 2;
+  color: #fffbe7;
+}
+
+.canvas-overlay h3 {
+  font-size: 1.8rem;
+  margin-bottom: 0.8rem;
+  color: #ffb347;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
+
+.canvas-overlay p {
+  font-size: 1.1rem;
+  color: #ffe7c2;
+  opacity: 0.9;
+  text-align: center;
+  margin: 0;
+}
+
+/* Controls - fixed at bottom */
+.sticky-bottom {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: rgba(249, 246, 231, 0.95);
+  backdrop-filter: blur(10px);
+  padding: 4px 24px 6px 24px;
+  border-top: 2px solid rgba(255, 179, 71, 0.3);
+}
+
+.controls-section {
+  display: flex;
+  gap: 100px;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Buttons - Google Meet style with cartoonic theme */
+.cartoon-btn {
+  background: #fffbe7;
+  border: 3px solid #ffb347;
+  border-radius: 10%;
+  width: 47px;
+  height: 47px;
+  font-size: 1.2rem;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  outline: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.small-btn {
+  width: 44px !important;
+  height: 44px !important;
+  font-size: 1.2rem !important;
+  margin: 0;
+}
+
+.cartoon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.cartoon-btn:hover:not(:disabled) {
+  background: #ffe7c2;
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+}
+
+.cartoon-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Button variations */
+.cam-btn {
+  border-color: #ffb347;
+  color: #ffb347;
+}
+
+.cam-btn:hover:not(:disabled) {
+  background: #ffb347;
+  color: #fffbe7;
+}
+
+.cartoon-toggle-btn {
+  border-color: #ff5e5e;
+  color: #ff5e5e;
+}
+
+.cartoon-toggle-btn:hover:not(:disabled) {
+  background: #ff5e5e;
+  color: #fffbe7;
+}
+
+.capture-btn {
+  border-color: #7ed957;
+  color: #7ed957;
+}
+
+.capture-btn:hover:not(:disabled) {
+  background: #7ed957;
+  color: #fffbe7;
+}
+
+/* Error message */
+.toony-error {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ff5e5e;
+  color: #fff;
+  padding: 4px 24px 6px 24px;
+  border-radius: 16px;
+  font-weight: bold;
+  text-align: center;
+  z-index: 110;
+  box-shadow: 0 4px 20px rgba(255, 94, 94, 0.4);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Status badges */
+.status-section {
+  margin-top: 12px;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.status-badge {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-weight: bold;
+  font-size: 0.9rem;
+  background: #fffbe7;
+  border: 2px solid #ffb347;
+  color: #ffb347;
+}
+
+.status-badge.ready {
+  background: #7ed957;
+  color: #fff;
+  border-color: #7ed957;
+}
+
+.status-badge.loading {
+  background: #ffe7c2;
+  color: #ffb347;
+  animation: pulse 1.5s infinite;
+}
+
+.status-badge.inactive {
+  background: #e0e0e0;
+  color: #888;
+  border-color: #ccc;
+}
+
+.status-badge.active {
+  background: #ff5e5e;
+  color: #fff;
+  border-color: #ff5e5e;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .toony-title {
+    font-size: 1.8rem;
+  }
+  
+  .small-title {
+    font-size: 1.8rem !important;
+  }
+
+  .main-content-flex {
+    top: 65px;
+    bottom: 75px;
+    padding: 10px;
+    height: calc(100vh - 140px);
+  }
+
+  .cartoon-btn,
+  .small-btn {
+    width: 48px !important;
+    height: 48px !important;
+    font-size: 1.3rem !important;
+  }
+
+  .controls-section {
+    gap: 16px;
+  }
+
+  .canvas-overlay h3 {
+    font-size: 1.4rem;
+  }
+
+  .canvas-overlay p {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .toony-title {
+    font-size: 1.6rem;
+  }
+  
+  .small-title {
+    font-size: 1.6rem !important;
+  }
+
+  .main-content-flex {
+    top: 60px;
+    bottom: 70px;
+    padding: 8px;
+    height: calc(100vh - 130px);
+  }
+
+  .sticky-top {
+    padding: 8px 16px;
+  }
+
+  .sticky-bottom {
+    padding: 8px 16px 10px 16px;
+  }
+
+  .cartoon-video-frame {
+    border-radius: 12px;
+  }
+
+  .output-canvas {
+    border-radius: 8px;
+  }
+
+  .canvas-overlay {
+    border-radius: 8px;
+  }
+}
+
+/* Utility classes */
+.no-scroll {
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Loading animation */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Smooth transitions */
+* {
+  transition: all 0.2s ease-in-out;
+}

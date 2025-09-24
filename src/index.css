@@ -1,0 +1,56 @@
+/* --- CSS RESET & GLOBAL STYLES --- */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --background-dark: #0f0c29;
+  --background-mid: #302b63;
+  --background-light: #24243e;
+  --primary-accent: #ff00ff; /* Electric Magenta */
+  --primary-accent-hover: #c700c7;
+  --secondary-accent: #00ffff; /* Cyan */
+  --secondary-accent-hover: #00c7c7;
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --text-primary: #FFFFFF;
+  --text-secondary: #E0E0E0;
+  --border-radius-lg: 1.5rem; /* 24px */
+  --border-radius-md: 1rem; /* 16px */
+  --font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --shadow-color-primary: rgba(255, 0, 255, 0.5);
+  --shadow-color-secondary: rgba(0, 255, 255, 0.5);
+}
+
+body {
+  font-family: var(--font-family);
+  background: linear-gradient(225deg, var(--background-dark), var(--background-mid), var(--background-light));
+  background-size: 200% 200%;
+  color: var(--text-primary);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  animation: gradient-flow 15s ease infinite;
+}
+
+@keyframes gradient-flow {
+	0% { background-position: 0% 50%; }
+	50% { background-position: 100% 50%; }
+	100% { background-position: 0% 50%; }
+}
+
+button {
+  font-family: var(--font-family);
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent; /* Disable tap highlight on mobile */
+}
+
+/* Add a global transition for smoother interactions */
+button, a {
+  transition: all 0.2s ease-in-out;
+}
+
