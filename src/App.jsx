@@ -148,6 +148,11 @@ function App() {
         // Canvas is taller than video, so scale plane's Y to fit
         plane.scale.y = canvasAspect / videoAspect;
     }
+
+    // --- NEW: Horizontally flip the front camera to mimic a mirror ---
+    if (facingMode === 'user') {
+      plane.scale.x *= -1;
+    }
     
     scene.add(plane);
 
@@ -165,7 +170,7 @@ function App() {
       if (material) material.dispose();
       if (geometry) geometry.dispose();
     };
-  }, [isStreaming, threeReady]);
+  }, [isStreaming, threeReady, facingMode]); // Add facingMode as a dependency
 
   // Start camera
   const startCamera = useCallback(async (currentFacingMode) => {
