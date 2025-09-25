@@ -209,12 +209,35 @@ function App() {
     else startCamera(facingMode);
   }, [isStreaming, startCamera, stopCamera, facingMode]);
   
-  const handleFlipCamera = useCallback(() => {
+  const handleFlipCamera = useCallback(async () => {
+      if (!isStreaming || !streamRef.current) return;
+
+      // Stop the current tracks without changing the main streaming state
+      streamRef.current.getTracks().forEach(track => track.stop());
+
       const newFacingMode = facingMode === 'user' ? 'environment' : 'user';
       setFacingMode(newFacingMode);
-      stopCamera();
-      setTimeout(() => startCamera(newFacingMode), 100);
-  }, [facingMode, startCamera, stopCamera]);
+
+      try {
+        const constraints = {
+          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: newFacingMode },
+          audio: false,
+        };
+        const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+        
+        streamRef.current = newStream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = newStream;
+          videoRef.current.play(); // Ensure playback continues
+        }
+      } catch (err) {
+        console.error("Camera flip error:", err);
+        setError("Could not switch camera.");
+        setTimeout(() => setError(""), 3000);
+        // If flipping fails, stop everything to avoid a broken state
+        stopCamera();
+      }
+  }, [isStreaming, facingMode, stopCamera]);
 
 
   const startRecording = useCallback(() => {
