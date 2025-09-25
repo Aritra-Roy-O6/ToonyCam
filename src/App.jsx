@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
-import "./App.css"
 
 function App() {
   const videoRef = useRef(null)
@@ -12,11 +11,14 @@ function App() {
   const animationRef = useRef(null)
   const [showCaptureModal, setShowCaptureModal] = useState(false)
   const [capturedImage, setCapturedImage] = useState(null)
+  
+  // Create a ref for a hidden canvas used for processing
+  const processingCanvasRef = useRef(null)
 
-  // Render video frame to canvas
-  const renderVideoFrame = useCallback(() => {
+  // Render video frame to canvas and apply cartoon effect using pixel manipulation
+  const processFrame = useCallback(() => {
     // Stop the loop if the camera is off
-    if (!isStreaming || !videoRef.current || !canvasRef.current) {
+    if (!isStreaming || !videoRef.current || !canvasRef.current || !processingCanvasRef.current) {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
@@ -24,26 +26,107 @@ function App() {
     }
 
     const video = videoRef.current
-    const canvas = canvasRef.current
-    const ctx = canvas.getContext("2d")
+    const displayCanvas = canvasRef.current
+    const displayCtx = displayCanvas.getContext("2d")
+    
+    const processingCanvas = processingCanvasRef.current
+    const processingCtx = processingCanvas.getContext("2d")
 
     if (video.readyState >= video.HAVE_CURRENT_DATA) {
-      const width = video.videoWidth
-      const height = video.videoHeight
+      const videoWidth = video.videoWidth
+      const videoHeight = video.videoHeight
 
-      // Ensure canvas dimensions match video
-      if (canvas.width !== width || canvas.height !== height) {
-        canvas.width = width
-        canvas.height = height
+      // Ensure display canvas dimensions match video
+      if (displayCanvas.width !== videoWidth || displayCanvas.height !== videoHeight) {
+        displayCanvas.width = videoWidth
+        displayCanvas.height = videoHeight
       }
 
-      // Draw the current video frame to the canvas
-      ctx.drawImage(video, 0, 0, width, height)
+      // --- Start Optimization ---
+      // Define a scale factor to process a smaller image
+      const scaleFactor = 0.5; // Process at 50% resolution
+      const processingWidth = videoWidth * scaleFactor;
+      const processingHeight = videoHeight * scaleFactor;
+
+      // Set the processing canvas to the smaller size
+      if (processingCanvas.width !== processingWidth || processingCanvas.height !== processingHeight) {
+        processingCanvas.width = processingWidth;
+        processingCanvas.height = processingHeight;
+      }
+      
+      // Draw the video frame onto the small processing canvas
+      processingCtx.drawImage(video, 0, 0, processingWidth, processingHeight);
+      // --- End Optimization ---
+
+      try {
+        // Perform all heavy processing on the smaller canvas
+        const originalImageData = processingCtx.getImageData(0, 0, processingWidth, processingHeight);
+        const processedImageData = processingCtx.getImageData(0, 0, processingWidth, processingHeight);
+        
+        const originalData = originalImageData.data;
+        const processedData = processedImageData.data;
+
+        // 1. Color Quantization (Posterization)
+        const levels = 7; 
+        const step = 255 / (levels - 1);
+        for (let i = 0; i < processedData.length; i += 4) {
+          processedData[i] = Math.round(processedData[i] / step) * step;
+          processedData[i + 1] = Math.round(processedData[i + 1] / step) * step;
+          processedData[i + 2] = Math.round(processedData[i + 2] / step) * step;
+        }
+
+        // 2. Edge Detection (Sobel Operator)
+        const edgeThreshold = 80; // Increased from 50 to reduce noise
+
+        for (let y = 1; y < processingHeight - 1; y++) {
+          for (let x = 1; x < processingWidth - 1; x++) {
+            const i = (y * processingWidth + x) * 4;
+            
+            const getGray = (data, index) => 
+              0.299 * data[index] + 0.587 * data[index + 1] + 0.114 * data[index + 2];
+
+            const topLeft = getGray(originalData, i - (processingWidth * 4) - 4);
+            const top = getGray(originalData, i - (processingWidth * 4));
+            const topRight = getGray(originalData, i - (processingWidth * 4) + 4);
+            const left = getGray(originalData, i - 4);
+            const right = getGray(originalData, i + 4);
+            const bottomLeft = getGray(originalData, i + (processingWidth * 4) - 4);
+            const bottom = getGray(originalData, i + (processingWidth * 4));
+            const bottomRight = getGray(originalData, i + (processingWidth * 4) + 4);
+
+            const sobelX = -topLeft - 2 * left - bottomLeft + topRight + 2 * right + bottomRight;
+            const sobelY = -topLeft - 2 * top - topRight + bottomLeft + 2 * bottom + bottomRight;
+
+            const magnitude = Math.sqrt(sobelX * sobelX + sobelY * sobelY);
+
+            // 3. Combine posterized color with dark edges
+            if (magnitude > edgeThreshold) {
+              processedData[i] = 0;
+              processedData[i + 1] = 0;
+              processedData[i + 2] = 0;
+            }
+          }
+        }
+
+        // Put the processed data back onto the small canvas
+        processingCtx.putImageData(processedImageData, 0, 0);
+        
+        // --- Final Render ---
+        // Disable smoothing to get a crisp, pixelated look when scaling up
+        displayCtx.imageSmoothingEnabled = false;
+        // Draw the small, processed canvas onto the large display canvas
+        displayCtx.drawImage(processingCanvas, 0, 0, videoWidth, videoHeight);
+
+      } catch (err) {
+          console.error("Pixel processing error:", err)
+          // Fallback to drawing the normal video frame if an error occurs
+          displayCtx.drawImage(video, 0, 0, videoWidth, videoHeight);
+      }
     }
 
     // Continue the loop
-    animationRef.current = requestAnimationFrame(renderVideoFrame)
-  }, [isStreaming]) // Dependency on isStreaming to manage the loop
+    animationRef.current = requestAnimationFrame(processFrame)
+  }, [isStreaming]) // Dependency on streaming state
 
   // Start camera
   const startCamera = useCallback(async () => {
@@ -95,7 +178,8 @@ function App() {
   // Start/stop the rendering loop when streaming state changes
   useEffect(() => {
     if (isStreaming) {
-      animationRef.current = requestAnimationFrame(renderVideoFrame)
+      // Changed to call the new processing function
+      animationRef.current = requestAnimationFrame(processFrame)
     } else {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current)
@@ -107,13 +191,12 @@ function App() {
         cancelAnimationFrame(animationRef.current)
       }
     }
-  }, [isStreaming, renderVideoFrame])
+  }, [isStreaming, processFrame]) // Updated dependency
 
   // Capture image from the canvas
   const captureImage = useCallback(() => {
     if (!canvasRef.current) return
     const canvas = canvasRef.current
-    // Ensure the canvas is not blank before capturing
     if (canvas.width === 0 || canvas.height === 0) {
       console.error("Cannot capture image from a blank canvas.");
       return;
@@ -182,6 +265,10 @@ function App() {
               muted 
             />
             <canvas ref={canvasRef} className="output-canvas" />
+            
+            {/* Add a hidden canvas for off-screen processing */}
+            <canvas ref={processingCanvasRef} style={{ display: 'none' }} />
+
             {!isStreaming && (
               <div className="canvas-overlay">
                 <h3>Click "Start Camera" to begin</h3>
@@ -200,8 +287,6 @@ function App() {
         >
           {isStreaming ? "🛑" : "📷"}
         </button>
-        
-        {/* We have removed the cartoon toggle button for now */}
         
         <button 
           className="cartoon-btn small-btn capture-btn" 
