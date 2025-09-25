@@ -6,165 +6,158 @@ import "./App.css"
 function App() {
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
+  const streamRef = useRef(null) // Store the stream reference
   const [isStreaming, setIsStreaming] = useState(false)
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [opencvReady, setOpencvReady] = useState(false)
   const [error, setError] = useState("")
   const animationRef = useRef(null)
+  const [showCaptureModal, setShowCaptureModal] = useState(false)
+  const [capturedImage, setCapturedImage] = useState(null)
 
-  // Initialize OpenCV
-  useEffect(() => {
-    const checkOpenCV = () => {
-      if (window.opencvReady && window.cv) {
-        console.log("OpenCV is ready in React component")
-        setOpencvReady(true)
-      } else {
-        setTimeout(checkOpenCV, 100)
+  // Render video frame to canvas
+  const renderVideoFrame = useCallback(() => {
+    // Stop the loop if the camera is off
+    if (!isStreaming || !videoRef.current || !canvasRef.current) {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
       }
-    }
-
-    const handleOpenCVReady = () => {
-      console.log("OpenCV ready event received")
-      setOpencvReady(true)
-    }
-
-    window.addEventListener("opencvReady", handleOpenCVReady)
-    checkOpenCV()
-
-    return () => {
-      window.removeEventListener("opencvReady", handleOpenCVReady)
-    }
-  }, [])
-
-  // Start camera
-  const startCamera = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 640, height: 480 },
-      })
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        videoRef.current.play()
-        setIsStreaming(true)
-        setError("")
-      }
-    } catch (err) {
-      console.error("Camera access error:", err)
-      setError("Camera access denied. Please allow camera permissions.")
-      setTimeout(() => setError("") , 2000)
-    }
-  }, [])
-
-  // Process frame with cartoon effect
-  const processFrame = useCallback(() => {
-    if (!opencvReady || !window.cv || !videoRef.current || !canvasRef.current || !isStreaming) {
-      return
+      return;
     }
 
     const video = videoRef.current
     const canvas = canvasRef.current
     const ctx = canvas.getContext("2d")
 
-    if (video.readyState === video.HAVE_ENOUGH_DATA) {
-      canvas.width = video.videoWidth
-      canvas.height = video.videoHeight
+    if (video.readyState >= video.HAVE_CURRENT_DATA) {
+      const width = video.videoWidth
+      const height = video.videoHeight
 
-      try {
-        // Draw video frame to canvas
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-
-        // Get image data for OpenCV processing
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-        const src = window.cv.matFromImageData(imageData)
-
-        // Create working matrices
-        const dst = new window.cv.Mat()
-        const gray = new window.cv.Mat()
-        const edges = new window.cv.Mat()
-        const bilateral = new window.cv.Mat()
-
-        // Apply bilateral filter for smoothing while preserving edges
-        window.cv.bilateralFilter(src, bilateral, 15, 80, 80)
-
-        // Convert to grayscale for edge detection
-        window.cv.cvtColor(src, gray, window.cv.COLOR_RGBA2GRAY)
-
-        // Apply median blur to reduce noise
-        window.cv.medianBlur(gray, gray, 7)
-
-        // Detect edges using Canny
-        window.cv.Canny(gray, edges, 50, 150)
-
-        // Convert edges back to RGBA
-        window.cv.cvtColor(edges, edges, window.cv.COLOR_GRAY2RGBA)
-
-        // Create cartoon effect by combining bilateral filter with edges
-        const cartoon = new window.cv.Mat()
-        window.cv.bitwise_and(bilateral, edges, cartoon)
-
-        // Blend the bilateral filtered image with the edge-enhanced version
-        window.cv.addWeighted(bilateral, 0.8, cartoon, 0.2, 0, dst)
-
-        // Convert back to ImageData and draw to canvas
-        const outputImageData = new ImageData(new Uint8ClampedArray(dst.data), dst.cols, dst.rows)
-        ctx.putImageData(outputImageData, 0, 0)
-
-        // Clean up matrices
-        src.delete()
-        dst.delete()
-        gray.delete()
-        edges.delete()
-        bilateral.delete()
-        cartoon.delete()
-      } catch (err) {
-        console.error("OpenCV processing error:", err)
-        // Fallback: just show the original video frame
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+      // Ensure canvas dimensions match video
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width
+        canvas.height = height
       }
+
+      // Draw the current video frame to the canvas
+      ctx.drawImage(video, 0, 0, width, height)
     }
 
-    if (isProcessing) {
-      animationRef.current = requestAnimationFrame(processFrame)
-    }
-  }, [opencvReady, isStreaming, isProcessing])
+    // Continue the loop
+    animationRef.current = requestAnimationFrame(renderVideoFrame)
+  }, [isStreaming]) // Dependency on isStreaming to manage the loop
 
-  // Toggle cartoon processing
-  const toggleProcessing = useCallback(() => {
-    if (!isProcessing) {
-      setIsProcessing(true)
-      processFrame()
+  // Start camera
+  const startCamera = useCallback(async () => {
+    try {
+      const constraints = {
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: 'user'
+        },
+        audio: false
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints)
+      streamRef.current = stream
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current.play()
+          setIsStreaming(true)
+          setError("")
+        }
+      }
+    } catch (err) {
+      console.error("Camera access error:", err)
+      setError("Camera access denied. Please allow camera permissions and try again.")
+      setTimeout(() => setError(""), 3000)
+    }
+  }, [])
+
+  // Stop camera
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop())
+      streamRef.current = null
+    }
+    
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
+    }
+    
+    // The render loop will stop on its own because isStreaming will be false
+    setIsStreaming(false)
+    setError("")
+  }, [])
+
+  // Start/stop the rendering loop when streaming state changes
+  useEffect(() => {
+    if (isStreaming) {
+      animationRef.current = requestAnimationFrame(renderVideoFrame)
     } else {
-      setIsProcessing(false)
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current)
       }
     }
-  }, [isProcessing, processFrame])
-
-  // Capture image
-  const captureImage = useCallback(() => {
-    if (!canvasRef.current) return
-
-    const canvas = canvasRef.current
-    const link = document.createElement("a")
-    link.download = `toonycam-${Date.now()}.png`
-    link.href = canvas.toDataURL("image/png")
-    link.click()
-  }, [])
-
-  // Cleanup on unmount
-  useEffect(() => {
+    // Cleanup function to cancel animation frame when component unmounts
     return () => {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current)
       }
-      if (videoRef.current && videoRef.current.srcObject) {
-        const tracks = videoRef.current.srcObject.getTracks()
-        tracks.forEach((track) => track.stop())
-      }
     }
+  }, [isStreaming, renderVideoFrame])
+
+  // Capture image from the canvas
+  const captureImage = useCallback(() => {
+    if (!canvasRef.current) return
+    const canvas = canvasRef.current
+    // Ensure the canvas is not blank before capturing
+    if (canvas.width === 0 || canvas.height === 0) {
+      console.error("Cannot capture image from a blank canvas.");
+      return;
+    }
+    const dataUrl = canvas.toDataURL("image/png")
+    setCapturedImage(dataUrl)
+    setShowCaptureModal(true)
   }, [])
+
+  // Download the captured image
+  const handleSaveCapture = () => {
+    if (!capturedImage) return
+    const link = document.createElement("a")
+    link.download = `toonycam-${Date.now()}.png`
+    link.href = capturedImage
+    document.body.appendChild(link) // Required for Firefox
+    link.click()
+    document.body.removeChild(link)
+    
+    setShowCaptureModal(false)
+    setCapturedImage(null)
+  }
+
+  // Close the modal without saving
+  const handleDiscardCapture = () => {
+    setShowCaptureModal(false)
+    setCapturedImage(null)
+  }
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stopCamera()
+    }
+  }, [stopCamera])
+
+  // Handle camera button click
+  const handleCameraToggle = useCallback(() => {
+    if (isStreaming) {
+      stopCamera()
+    } else {
+      startCamera()
+    }
+  }, [isStreaming, startCamera, stopCamera])
 
   return (
     <div className="toonycam-container no-scroll">
@@ -181,7 +174,13 @@ function App() {
       <div className="main-content-flex">
         <div className="video-section big-video">
           <div className="cartoon-video-frame">
-            <video ref={videoRef} className="hidden-video" autoPlay playsInline muted />
+            <video 
+              ref={videoRef} 
+              className="hidden-video" 
+              autoPlay 
+              playsInline 
+              muted 
+            />
             <canvas ref={canvasRef} className="output-canvas" />
             {!isStreaming && (
               <div className="canvas-overlay">
@@ -194,16 +193,37 @@ function App() {
       </div>
 
       <div className="controls-section sticky-bottom">
-        <button className="cartoon-btn small-btn cam-btn" onClick={startCamera} disabled={isStreaming} title="Start Camera">
-          {isStreaming ? "🎥" : "📷"}
+        <button 
+          className="cartoon-btn small-btn cam-btn" 
+          onClick={handleCameraToggle} 
+          title={isStreaming ? "Stop Camera" : "Start Camera"}
+        >
+          {isStreaming ? "🛑" : "📷"}
         </button>
-        <button className="cartoon-btn small-btn cartoon-toggle-btn" onClick={toggleProcessing} disabled={!isStreaming || !opencvReady} title="Toggle Cartoon">
-          {isProcessing ? "🛑" : "✨"}
-        </button>
-        <button className="cartoon-btn small-btn capture-btn" onClick={captureImage} disabled={!isStreaming} title="Capture">
+        
+        {/* We have removed the cartoon toggle button for now */}
+        
+        <button 
+          className="cartoon-btn small-btn capture-btn" 
+          onClick={captureImage} 
+          disabled={!isStreaming} 
+          title="Capture Photo"
+        >
           📸
         </button>
       </div>
+
+      {showCaptureModal && capturedImage && (
+        <div className="capture-modal-overlay">
+          <div className="capture-modal">
+            <img src={capturedImage} alt="Captured" className="capture-modal-img" />
+            <div className="capture-modal-actions">
+              <button className="cartoon-btn save-btn" onClick={handleSaveCapture}>Save</button>
+              <button className="cartoon-btn discard-btn" onClick={handleDiscardCapture}>Discard</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
